@@ -689,6 +689,9 @@ void kernelTest(int d, int n, int n_test, int kk, double *result, double mu, dou
   deviceInitKnn(n, n_test, 40);
   double f = DBL_MAX;
   
+  double global_max_acc = .0;
+  unsigned global_max_iter = 0;
+  
   //zeroHinge<<<84, 256>>>();
   //zeroT_triplet<<<84, 256>>>(); 
   unsigned iter = 0; 
@@ -723,19 +726,13 @@ void kernelTest(int d, int n, int n_test, int kk, double *result, double mu, dou
 	  max_acc_k = 2 * i + 1;
 	}
   }
-  cout << endl << "max acc = " << max_acc << " at k = " << max_acc_k;
-  /*
-  cudaEvent_t start_event1, stop_event1;
-  cudaEventCreate(&start_event1);
-  cudaEventCreate(&stop_event1);
-  cudaEventRecord(start_event1, 0);
-  cudaThreadSynchronize();
-  
-  float time_kernel1;
-  cudaEventRecord(stop_event1, 0);
-  cudaEventElapsedTime(&time_kernel1, start_event1, stop_event1);
-  cout << "time1 " << time_kernel1/1000 << endl;
-  */
+  if (max_acc > global_max_acc&&iter>10){
+    global_max_acc = max_acc;
+	global_max_iter = iter;
+  }
+  cout << endl << "max acc = " << max_acc << " at k = " << max_acc_k 
+  << ". global max = " << global_max_acc << " at iter = " << global_max_iter;
+
   // update distances to targets(i,j) and between opposing points(i,l)
   update2<<<84, 256>>>();
   
@@ -772,7 +769,19 @@ void kernelTest(int d, int n, int n_test, int kk, double *result, double mu, dou
   cudaEventElapsedTime(&time_kernel, start_event, stop_event);
   cout << "time " << time_kernel/1000 << endl;
   ++ iter;
-  if (iter > 1000)
+  if (iter > 100)
     break;
   }
 }
+  /*
+  cudaEvent_t start_event1, stop_event1;
+  cudaEventCreate(&start_event1);
+  cudaEventCreate(&stop_event1);
+  cudaEventRecord(start_event1, 0);
+  cudaThreadSynchronize();
+  
+  float time_kernel1;
+  cudaEventRecord(stop_event1, 0);
+  cudaEventElapsedTime(&time_kernel1, start_event1, stop_event1);
+  cout << "time1 " << time_kernel1/1000 << endl;
+  */
