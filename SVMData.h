@@ -10,7 +10,7 @@ extern void deviceInitO(double *, int);
 extern void deviceInitTargetTerm(double *, int);
 extern void deviceInitUpdateTerm(int, int);
 extern void deviceInitTri(int);
-extern void kernelTest(int, int, int, int, double *, double);
+extern void kernelTest(int, int, int, int, double *, double, double);
 extern void deviceInitLabelTrain(struct Inst *, unsigned);
 extern void deviceInitLabelTest(struct Inst *, unsigned);
 

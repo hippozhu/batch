@@ -14,13 +14,13 @@ int main(int argc, char** argv){
   
   SVMData data_train(filestem+".train"); 
   SVMData data_test(filestem+".test");
-  cout << "a1" << endl;
+  //cout << "a1" << endl;
   KernelNeighborhood nb(data_train, data_test, NClass, k);
   //cout << "t: " << nb.target[0] << " " << nb.target[1] << " " << nb.target[2] << endl;
   cout << nb.nfeat << "*" << nb.ninst << ", k=" << nb.k << endl;  
   Solver s(nb, mu, alpha);
   double *r = (double *)malloc(sizeof(double) * nb.nfeat * nb.ninst);
-  kernelTest(nb.nfeat, nb.ninst, nb.ninst_test, nb.k, r, s.alpha);
+  kernelTest(nb.nfeat, nb.ninst, nb.ninst_test, nb.k, r, mu, s.alpha);
   //s.cusolve();
 }
 

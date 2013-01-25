@@ -7,6 +7,7 @@ __constant__ int ntrain;
 __constant__ int ntest;
 __constant__ int nclass;
 __constant__ int k;
+__constant__ int nnegibor;
 __constant__ double mu;
 __constant__ int idx_o;
 
@@ -399,7 +400,8 @@ __global__ void knnFindNeighbor(){
     start += ntrain % BSIZE;
   
   __syncthreads();
-  int b = min(len, k);
+  //int b = min(len, k);
+  int b = min(len, nnegibor);
   for (int i = 0; i < b; ++ i)
     for (int j = start; j < start + len - i - 1; ++ j)
 	  if(getElement(dist_knn, bid, j, ntrain) < getElement(dist_knn, bid, j + 1, ntrain)){
@@ -419,7 +421,8 @@ __global__ void knnFindNeighbor(){
   __shared__ int shortest[BSIZE];
   
   int p = start + len -1;
-  for (int i = 0; i < k; ++ i){
+  //for (int i = 0; i < k; ++ i){
+  for (int i = 0; i < nnegibor; ++ i){
     if (b > 0){
       dist[tid] = getElement(dist_knn, bid, p, ntrain);
       ino[tid] = getElementInt(ino_knn, bid, p, ntrain);
@@ -444,7 +447,8 @@ __global__ void knnFindNeighbor(){
 	
 	__syncthreads();
 	if(tid == 0)
-	  setElementInt(neighbor_knn, bid, i, k, ino[0]);
+	  //setElementInt(neighbor_knn, bid, i, k, ino[0]);
+	  setElementInt(neighbor_knn, bid, i, nnegibor, ino[0]);
 	if(tid == shortest[0]){
 	  -- b;
 	  -- p;
@@ -453,12 +457,14 @@ __global__ void knnFindNeighbor(){
 }
 
 __global__ void knnMatching(){
-  int ub = ntest * k;
+  //int ub = ntest * k;
+  int ub = ntest * nnegibor;
   int stride = blockDim.x * gridDim.x;
   
   int idx_test, idx_train;
   for (int m = blockIdx.x * blockDim.x + threadIdx.x; m < ub; m += stride){
-    idx_test = m / k;
+    //idx_test = m / k;
+    idx_test = m / nnegibor;
 	idx_train = neighbor_knn[m];
 	if (label_test[idx_test] == label_train[idx_train])
 	  neighbor_knn[m] = 1;
@@ -476,7 +482,8 @@ __global__ void knnAcc(int neiborhood_size){
   for (int m = tid; m < ntest; m += stride){
     int nsametype = 0;
     for (int i = 0; i < neiborhood_size; ++ i)
-	  nsametype += neighbor_knn[m * k + i];
+	  //nsametype += neighbor_knn[m * k + i];
+	  nsametype += neighbor_knn[m * nnegibor + i];
 	if (nsametype > neiborhood_size/2)
 	  matched[tid] += 1;
   }
@@ -490,39 +497,6 @@ __global__ void knnAcc(int neiborhood_size){
   }
   
   __syncthreads();  
-  if (tid ==0)
-    acc_knn = 1.0 * matched[0] / ntest;
-}
-
-// lauch with single block
-__global__ void knnCounting(){
-  int tid = threadIdx.x;
-  int stride = blockDim.x;
-  __shared__ int matched[BSIZE];
-  for (int m = tid; m < ntest; m += stride){
-    for (int i = 1; i < k; ++ i)
-	  neighbor_knn[m * k] += neighbor_knn[m * k + i];
-	if (neighbor_knn[m * k] > k/2)
-	  neighbor_knn[m * k] = 1;
-	else
-	  neighbor_knn[m * k] = 0;
-  }  
-  __syncthreads();
-  
-  matched[tid] = 0;
-  
-  for (int m = tid; m < ntest; m += stride)
-    matched[tid] += neighbor_knn[m * k];
-
-  int stride1 = blockDim.x/2;
-  while (stride1 > 0){
-	__syncthreads();
-	if (tid < stride1)
-	  matched[tid] += matched[tid + stride1];
-	stride1 /= 2;
-  }
-  
-  __syncthreads();
   if (tid ==0)
     acc_knn = 1.0 * matched[0] / ntest;
 }
@@ -706,16 +680,18 @@ void deviceInitKnn(int n_train, int n_test, int kk){
   
   cudaMalloc((void **)&i_knn, sizeof(int) * n_test * kk);
   cudaMemcpyToSymbol(neighbor_knn, &i_knn, sizeof(int*), 0, cudaMemcpyHostToDevice);
+  
+  cudaMemcpyToSymbol(nnegibor, &kk, sizeof(int), 0, cudaMemcpyHostToDevice);
 }
 
-void kernelTest(int d, int n, int n_test, int kk, double *result, double alpha){
-  double dd[10];  
-  unsigned iter = 0;
-  deviceInitKnn(n, n_test, 19);
+void kernelTest(int d, int n, int n_test, int kk, double *result, double mu, double alpha){
+  double dd[20];
+  deviceInitKnn(n, n_test, 40);
   double f = DBL_MAX;
   
-  zeroHinge<<<84, 256>>>();
-  zeroT_triplet<<<84, 256>>>();  
+  //zeroHinge<<<84, 256>>>();
+  //zeroT_triplet<<<84, 256>>>(); 
+  unsigned iter = 0; 
   while(true){
   
   // Run the event recording
@@ -724,7 +700,7 @@ void kernelTest(int d, int n, int n_test, int kk, double *result, double alpha){
   cudaEventCreate(&stop_event);
   cudaEventRecord(start_event, 0);
   
-  cout << endl << "Iter " << iter << endl;
+  cout << endl << "Iter = " << iter << ", K = "<< kk << ", mu =" << mu << endl;
   
   int idx = iter % 2;
   cudaMemcpyToSymbol(idx_o, &idx, sizeof(int), 0, cudaMemcpyHostToDevice);
@@ -733,12 +709,21 @@ void kernelTest(int d, int n, int n_test, int kk, double *result, double alpha){
   knnFindNeighbor<<<n_test, BSIZE>>>();
   knnMatching<<<84, BSIZE>>>();  
   
-  for (int i = 0; i < 10; ++ i){
+  for (int i = 0; i < 20; ++ i){
     knnAcc<<<1, BSIZE>>>(2 * i + 1);
-    cudaMemcpyFromSymbol(dd, acc_knn, sizeof(double), 0, cudaMemcpyDeviceToHost);
-    cout << dd[0] << ",";
+    cudaMemcpyFromSymbol(&dd[i], acc_knn, sizeof(double), 0, cudaMemcpyDeviceToHost);
+    cout << dd[i] << ",";
   }
   
+  double max_acc = .0;
+  int max_acc_k = -1;
+  for (int i = 0; i < 20; ++ i){
+    if (dd[i] > max_acc){
+	  max_acc = dd[i];
+	  max_acc_k = 2 * i + 1;
+	}
+  }
+  cout << endl << "max acc = " << max_acc << " at k = " << max_acc_k;
   /*
   cudaEvent_t start_event1, stop_event1;
   cudaEventCreate(&start_event1);
@@ -755,9 +740,9 @@ void kernelTest(int d, int n, int n_test, int kk, double *result, double alpha){
   update2<<<84, 256>>>();
   
   // update t_triplet by calculating vdist of every (i, j, l)
-  //zeroT_triplet<<<84, 256>>>();  
-  //update3_2<<<84, 256>>>(); 
-  update3_3<<<84, 256>>>();  
+  zeroT_triplet<<<84, 256>>>();  
+  update3_2<<<84, 256>>>(); 
+  //update3_3<<<84, 256>>>();  
   
   // update object function value
   calcFval<<<84, 256>>>();
