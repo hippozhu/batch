@@ -726,7 +726,7 @@ void kernelTest(int d, int n, int n_test, int kk, double *result, double mu, dou
 	  max_acc_k = 2 * i + 1;
 	}
   }
-  if (max_acc > global_max_acc&&iter>10){
+  if (max_acc >= global_max_acc&&iter>10){
     global_max_acc = max_acc;
 	global_max_iter = iter;
   }
