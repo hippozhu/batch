@@ -5,7 +5,7 @@
 for i in {0..9}
 do
   cd ~/crux/$1/fold$i
-  ~/crux/find_crux.py $2 2 
-  ~/crux/find_crux.py $2 4
+  ~/batch/find_crux.py $2 2 
+  ~/batch/find_crux.py $2 4
 done
 
