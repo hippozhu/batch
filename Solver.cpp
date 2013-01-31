@@ -36,7 +36,7 @@ void Solver::computeTargetTerm(){
   t_target = MatrixXd::Zero((*nb).ninst, (*nb).ninst);
   for(int i = 0; i < (*nb).ninst; i++)
 	for(int j = 0; j < (*nb).k; j++){
-	  if ((*nb).sd->inst[i].ino == TP)
+	  if ((*nb).sd->inst[i].label == TP)
 	    s = nu;
 	  else
 	    s = 1.0;
