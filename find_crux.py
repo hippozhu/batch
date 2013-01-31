@@ -5,9 +5,12 @@ def crux(tt):
   labels = []
   f_class = open(tt + '.class')
   f_predict = open('svm_' + tt + '.predict')
+  lno = 0
   for line in f_class:
+    lno += 1
     real = int(line)
-    predict = int(f_predict.readline())
+    p = f_predict.readline()
+    predict = int(p)
     if real == 1 and predict == 1:
       labels.append(1)
     elif real == -1 and predict == -1:

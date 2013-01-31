@@ -5,9 +5,9 @@
 #include "Solver.h"
 
 
-Solver::Solver(KernelNeighborhood &neighborhood, double m, double a):nb(&neighborhood), alpha(a), mu(m) {
+Solver::Solver(KernelNeighborhood &neighborhood, double m, double a, double n):nb(&neighborhood), alpha(a), mu(m), nu(n) {
   initO();
-  deviceInitMu(m);
+  deviceInitMu(mu, nu);
   double *o = new double[(*nb).nfeat * (*nb).ninst];
   matrixToDouble(o, O);
   deviceInitO(o, O.size());
@@ -32,11 +32,16 @@ void Solver::initO(){
 }
 
 void Solver::computeTargetTerm(){
+  double s = 1.0;
   t_target = MatrixXd::Zero((*nb).ninst, (*nb).ninst);
   for(int i = 0; i < (*nb).ninst; i++)
 	for(int j = 0; j < (*nb).k; j++){
-	  t_target.col(i) += (*nb).getE(i, (*nb).getTarget(i, j));
-	  t_target.col((*nb).getTarget(i, j)) -= (*nb).getE(i, (*nb).getTarget(i, j));
+	  if ((*nb).sd->inst[i].ino == TP)
+	    s = nu;
+	  else
+	    s = 1.0;
+	  t_target.col(i) += s * (*nb).getE(i, (*nb).getTarget(i, j));
+	  t_target.col((*nb).getTarget(i, j)) -= s * (*nb).getE(i, (*nb).getTarget(i, j));
 	}
 }
 

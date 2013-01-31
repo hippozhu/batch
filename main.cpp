@@ -11,6 +11,7 @@ int main(int argc, char** argv){
   int k = atoi(argv[3]);
   double mu = atof(argv[4]);
   double alpha = atof(argv[5]);
+  double nu = atof(argv[6]);
   
   SVMData data_train(filestem+".train"); 
   SVMData data_test(filestem+".test");
@@ -18,9 +19,9 @@ int main(int argc, char** argv){
   KernelNeighborhood nb(data_train, data_test, NClass, k);
   //cout << "t: " << nb.target[0] << " " << nb.target[1] << " " << nb.target[2] << endl;
   cout << nb.nfeat << "*" << nb.ninst << ", k=" << nb.k << endl;  
-  Solver s(nb, mu, alpha);
+  Solver s(nb, mu, alpha, nu);
   double *r = (double *)malloc(sizeof(double) * nb.nfeat * nb.ninst);
-  kernelTest(nb.nfeat, nb.ninst, nb.ninst_test, nb.k, r, mu, s.alpha);
+  kernelTest(nb.nfeat, nb.ninst, nb.ninst_test, nb.k, r, mu, s.alpha, s.nu);
   //s.cusolve();
 }
 
